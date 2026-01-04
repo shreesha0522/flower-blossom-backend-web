@@ -1,23 +1,21 @@
-import express, { Application } from "express";
-import bodyParser from "body-parser";
-import dotenv from "dotenv";
+import express from "express";
 import { PORT } from "./config";
-
-import authRouter from "./routes/auth.route";
 import { connectDatabase } from "./database/mongodb";
 
-dotenv.config()
-const app : Application= express();
+const app = express();
 
-app.use(bodyParser.json());
+// Connect to MongoDB before starting the server
+connectDatabase();
 
-app.use('/api/auth', authRouter);
+// Middlewares
+app.use(express.json());
 
-async function startServer() {
-  await connectDatabase();
-  app.listen(PORT, () => {
-    console.log(`app is running on: http://localhost:${PORT}`)
-  })
-}
+// Example route
+app.get("/", (req, res) => {
+  res.send("Flower Blossom Backend is running!");
+});
 
-startServer();
+// Start server
+app.listen(PORT, () => {
+  console.log(`App is running on http://localhost:${PORT}`);
+});
