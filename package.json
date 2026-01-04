@@ -1,28 +1,24 @@
 {
-  "name": "flower-blossom",
+  "name": "flower-blossom-backend",
   "version": "1.0.0",
-  "description": "flower shop",
-  "main": "index.js",
+  "main": "dist/app.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node src/app.ts",
+    "dev": "ts-node-dev src/app.ts"
   },
-  "author": "Shreesha shrestha",
-  "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.1.1",
-    "zod": "^4.3.5"
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "zod": "^3.22.2"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^25.0.3",
-    "nodemon": "^3.1.11",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "@types/bcryptjs": "^2.4.2",
+    "@types/express": "^4.17.17",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/node": "^20.5.0",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.1.6"
   }
 }

@@ -1,13 +1,12 @@
 import mongoose from "mongoose";
-import {MONGODB_URI} from "../config/index";
+import { MONGODB_URI } from "../config";
 
-// Info: Function to connect to database
-export async function connectDatabase() {
+export const connectDatabase = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log("Connected to Database", MONGODB_URI);
+    console.log("✅ MongoDB connected");
   } catch (error) {
-    console.error("Database error: ", error);
-    process.exit(1);
+    console.error("❌ MongoDB connection error:", error);
+    process.exit(1); // Stop server if DB fails
   }
-}
+};
