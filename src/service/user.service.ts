@@ -4,51 +4,39 @@ import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config";
 import { HttpError } from "../error/http-error";
+import { z } from "zod";
 
-let userRepository = new UserRepository();
+type CreateUserInput = z.infer<typeof CreateUserDTO>;
+type LoginUserInput = z.infer<typeof LoginUserDTO>;
 
-export class UserService{
-  async createUser(data:CreateUserDTO) {
-    const emailCheck = await userRepository.getUserByEmail(data.email);
+const userRepository = new UserRepository();
 
-    if(emailCheck) {
-      throw new HttpError(403,"Email already in use"); 
+export class UserService {
+  async createUser(data: CreateUserInput) {
+    if (await userRepository.getUserByEmail(data.email)) {
+      throw new HttpError(403, "Email already in use");
+    }
+    if (await userRepository.getUserByUsername(data.username)) {
+      throw new HttpError(403, "Username already in use");
     }
 
-    const hashedPassword = await bcryptjs.hash(data.password, 10);
-    data.password = hashedPassword;
-
-    const usernameCheck = await userRepository.getUserByUsername(data.username);
-
-    if(usernameCheck){
-      throw new HttpError(403,"Username already in use")
-    }
-
-    const newUser = await userRepository.createUser(data);
-
-    return newUser;
+    data.password = await bcryptjs.hash(data.password, 10);
+    return userRepository.createUser(data);
   }
 
-  async loginUser(data: LoginUserDTO){
+  async loginUser(data: LoginUserInput) {
     const user = await userRepository.getUserByEmail(data.email);
-    if(!user) {
-      throw new HttpError(404,"No user found")
-    }
+    if (!user) throw new HttpError(404, "No user found");
 
     const validPassword = await bcryptjs.compare(data.password, user.password);
-    if(!validPassword){
-      throw new HttpError(401,"Invalid Credentials")
-    }
+    if (!validPassword) throw new HttpError(401, "Invalid Credentials");
 
-    const payload = {
-      id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role
-    }
+    const token = jwt.sign(
+      { id: user._id, username: user.username, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
 
-    const token = jwt.sign(payload, JWT_SECRET, {expiresIn: "30d"});
-    return {token, user};
+    return { token, user };
   }
 }
