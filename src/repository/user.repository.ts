@@ -13,4 +13,9 @@ export class UserRepository {
     const user = new User(data);
     return user.save();
   }
+
+  // NEW METHOD: Get user by ID
+  async getUserById(userId: string): Promise<IUser | null> {
+    return User.findById(userId).select("-password"); // Exclude password from result
+  }
 }
