@@ -21,7 +21,16 @@ export class UserService {
     }
 
     data.password = await bcryptjs.hash(data.password, 10);
-    return userRepository.createUser(data);
+    const user = await userRepository.createUser(data);
+
+    // Generate token for new user
+    const token = jwt.sign(
+      { id: user._id, username: user.username, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    return { user, token };
   }
 
   async loginUser(data: LoginUserInput) {
@@ -38,5 +47,14 @@ export class UserService {
     );
 
     return { token, user };
+  }
+
+  // NEW METHOD: Get user by ID
+  async getUserById(userId: string) {
+    const user = await userRepository.getUserById(userId);
+    if (!user) {
+      throw new HttpError(404, "User not found");
+    }
+    return user;
   }
 }
