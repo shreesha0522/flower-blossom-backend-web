@@ -1,52 +1,50 @@
 import express, { Application } from "express";
+import bodyParser from "body-parser";
 import dotenv from "dotenv";
+import { PORT } from "./config";
 import cors from "cors";
 import morgan from "morgan";
-import cookieParser from "cookie-parser";
+import authRouter from "./routes/auth.route";
+import uploadRouter from "./routes/upload.route";
 import { connectDatabase } from "./database/mongodb";
-import authRoute from "./routes/auth.route"; // Import name is authRoute
 
 dotenv.config();
-
 const app: Application = express();
 
-// ================= MIDDLEWARE =================
-// CORS - Allow requests from Next.js frontend
+// ✅ CORS options
 const corsOptions = {
-  origin: ["http://localhost:3000", "http://localhost:3001"],
-  credentials: true, // Important for cookies!
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: ["http://localhost:3000", "http://localhost:3005", "http://localhost:8000"]
 };
-
 app.use(cors(corsOptions));
-app.use(cookieParser());
+
+// ✅ Logger
 app.use(morgan("dev"));
-app.use(express.json());
 
-// ================= ROUTES =================
-app.use("/api/auth", authRoute); // FIXED: Changed authRoutes to authRoute
+// ✅ JSON parser
+app.use(bodyParser.json());
 
-// Health check
-app.get("/", (_req, res) => {
-  res.status(200).send("🌸 Flower Blossom Backend is running!");
-});
+// ✅ Serve uploaded images as static files
+app.use("/uploads", express.static("uploads"));
 
-// ================= SERVER STARTUP =================
-const PORT = process.env.PORT || 5001;
+// ✅ Routes
+app.use("/api/auth", authRouter);
+app.use("/api/upload", uploadRouter);
 
 async function startServer() {
   try {
+    // Connect to MongoDB
     await connectDatabase();
-    console.log("✅ Database connected successfully");
-    
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
+
+    // Listen on all network interfaces (for emulator and physical devices)
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`✅ Server is running on: http://localhost:${PORT}`);
+      console.log(`📱 Android emulator can access at: http://10.0.2.2:${PORT}`);
+      console.log(`🌐 Network access available at: http://0.0.0.0:${PORT}`);
     });
-  } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    process.exit(1);
+  } catch (err) {
+    console.error("❌ Failed to start server:", err);
   }
 }
 
+// Start the server
 startServer();
