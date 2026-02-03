@@ -1,49 +1,35 @@
 import { Request, Response } from "express";
 import { UserService } from "../service/user.service";
 import { CreateUserDTO, LoginUserDTO } from "../dtos/user.dto";
+import { UserModel } from "../models/user.model";
+import z from "zod";
+import path from "path";
+import fs from "fs";
 
 const userService = new UserService();
 
 export class AuthController {
+  // Register user
   register = async (req: Request, res: Response) => {
     try {
-      console.log("REGISTER BODY:", req.body);
+      console.log("REGISTER BODY:", req.body); // debug
+
+      // Parse data with CreateUserDTO, confirmPassword removed from DTO
       const parsedData = CreateUserDTO.safeParse(req.body);
       if (!parsedData.success) {
         return res.status(400).json({
           success: false,
-          message: parsedData.error.format(),
+          message: z.prettifyError(parsedData.error),
         });
       }
 
-      const userData = parsedData.data;
-      const { user, token } = await userService.createUser(userData);
-
-      // Cookie settings - accessible on frontend
-      const cookieOptions = {
-        httpOnly: false, // CHANGED: Allow JavaScript to read
-        secure: false, // CHANGED: Set to false for localhost
-        sameSite: 'lax' as const, // CHANGED: Use 'lax' for same-site cookies
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        path: '/',
-        domain: 'localhost' // ADDED: Works for all localhost ports
-      };
-
-      // Set auth_token cookie
-      res.cookie('auth_token', token, cookieOptions);
-
-      // Set user_data cookie
-      res.cookie('user_data', JSON.stringify({
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }), cookieOptions);
+      const userData: CreateUserDTO = parsedData.data;
+      const newUser = await userService.createUser(userData);
 
       return res.status(201).json({
         success: true,
-        message: "User created successfully",
-        data: user,
+        message: "User created",
+        data: newUser,
       });
     } catch (error: any) {
       return res.status(error.status ?? 500).json({
@@ -53,74 +39,135 @@ export class AuthController {
     }
   };
 
+  // Login user
   login = async (req: Request, res: Response) => {
     try {
-      console.log("LOGIN BODY:", req.body);
+      console.log("LOGIN BODY:", req.body); // debug
+
       const parsedData = LoginUserDTO.safeParse(req.body);
       if (!parsedData.success) {
         return res.status(400).json({
           success: false,
-          message: parsedData.error.format(),
+          message: z.prettifyError(parsedData.error),
         });
       }
 
-      const userData = parsedData.data;
+      const userData: LoginUserDTO = parsedData.data;
       const { token, user } = await userService.loginUser(userData);
-
-      // Cookie settings - accessible on frontend
-      const cookieOptions = {
-        httpOnly: false, // CHANGED: Allow JavaScript to read
-        secure: false, // CHANGED: Set to false for localhost
-        sameSite: 'lax' as const, // CHANGED: Use 'lax' for same-site cookies
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        path: '/',
-        domain: 'localhost' // ADDED: Works for all localhost ports
-      };
-
-      // Set auth_token cookie
-      res.cookie('auth_token', token, cookieOptions);
-
-      // Set user_data cookie
-      res.cookie('user_data', JSON.stringify({
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }), cookieOptions);
 
       return res.status(200).json({
         success: true,
         message: "Login successful",
         data: user,
+        token,
       });
     } catch (error: any) {
       return res.status(error.status ?? 500).json({
         success: false,
-        message: error.message ?? "Internal Server Error",
+        message: error.message || "Internal Server Error",
       });
     }
   };
 
-  me = async (req: Request, res: Response) => {
+  // ✅ NEW: Update user profile
+  // PUT /api/auth/:id
+  updateUser = async (req: Request, res: Response) => {
     try {
-      const userId = req.user.id || req.user._id || req.user.userId;
-      const user = await userService.getUserById(userId);
+      const { id } = req.params;
+      const currentUser = (req as any).user;
 
-      if (!user) {
+      // Only allow users to update their own profile
+      if (currentUser.id !== id) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only update your own profile",
+        });
+      }
+
+      const { firstName, lastName, email, bio, phone, removeImage } = req.body;
+
+      // Check if user exists
+      const existingUser = await UserModel.findById(id);
+      if (!existingUser) {
         return res.status(404).json({
           success: false,
           message: "User not found",
         });
       }
 
+      // If email is changing, check if new email already exists
+      if (email && email !== existingUser.email) {
+        const emailExists = await UserModel.findOne({ email });
+        if (emailExists) {
+          return res.status(400).json({
+            success: false,
+            message: "Email already exists",
+          });
+        }
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (email) updateData.email = email;
+      if (bio !== undefined) updateData.bio = bio || null;
+      if (phone !== undefined) updateData.phone = phone || null;
+
+      // Handle image removal
+      if (removeImage === "true") {
+        if (existingUser.profileImage) {
+          const oldImagePath = path.join(process.cwd(), existingUser.profileImage);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+            console.log("🗑️ Old image deleted:", oldImagePath);
+          }
+        }
+        updateData.profileImage = "";
+      }
+
+      // Handle new image upload
+      if (req.file) {
+        // Delete old image if exists
+        if (existingUser.profileImage) {
+          const oldImagePath = path.join(process.cwd(), existingUser.profileImage);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+            console.log("🗑️ Old image deleted:", oldImagePath);
+          }
+        }
+        updateData.profileImage = `/uploads/${req.file.filename}`;
+      }
+
+      // Update user in database
+      const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true,
+      });
+
+      console.log("✅ User updated:", updatedUser?.email);
+
       return res.status(200).json({
         success: true,
-        data: user,
+        message: "User updated successfully",
+        data: {
+          id: updatedUser?._id,
+          username: updatedUser?.username,
+          email: updatedUser?.email,
+          firstName: updatedUser?.firstName,
+          lastName: updatedUser?.lastName,
+          bio: updatedUser?.bio,
+          phone: updatedUser?.phone,
+          role: updatedUser?.role,
+          profileImage: updatedUser?.profileImage,
+        },
       });
     } catch (error: any) {
+      console.error("❌ Update user error:", error);
       return res.status(500).json({
         success: false,
-        message: error.message ?? "Failed to get user data",
+        message: error.message || "Failed to update user",
       });
     }
   };
