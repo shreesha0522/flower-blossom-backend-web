@@ -13,7 +13,10 @@ const UserSchema: Schema = new Schema<UserType>(
       type: String, 
       enum: ["user", "admin"],
       default: "user"
-    }
+    },
+    // ✅ ADD THESE TWO FIELDS
+    bio: { type: String, default: null },
+    phone: { type: String, default: null },
   }, 
   {
     timestamps: true
@@ -22,8 +25,8 @@ const UserSchema: Schema = new Schema<UserType>(
 
 export interface IUser extends UserType, Document {
   _id: mongoose.Types.ObjectId;
-  createdAt: Date,
-  updatedAt: Date
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const UserModel = mongoose.model<IUser>("User", UserSchema);
