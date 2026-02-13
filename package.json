@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/nodemailer": "^7.0.9",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -25,6 +26,7 @@
     "zod": "^4.3.4"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",

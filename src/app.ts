@@ -12,9 +12,10 @@ dotenv.config();
 
 const app: Application = express();
 
-// ✅ CORS options
+// ✅ CORS options (FIXED)
 const corsOptions = {
-  origin: ["http://localhost:3000", "http://localhost:3005", "http://localhost:8000"]
+  origin: ["http://localhost:3000", "http://localhost:3005", "http://localhost:8000"],
+  credentials: true  // ✅ ADDED THIS
 };
 app.use(cors(corsOptions));
 
@@ -33,5 +34,5 @@ app.use("/api/upload", uploadRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/admin", adminRouter);
 
-// ✅ Export the app (don't start server here)
+// ✅ Export the app
 export default app;

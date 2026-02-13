@@ -11,4 +11,7 @@ router.post("/profile-image", upload.single("image"), uploadController.uploadPro
 // GET route to get user profile image
 router.get("/profile-image/:userId", uploadController.getProfileImage);
 
+// DELETE route to delete profile image
+router.delete("/profile-image/:userId", uploadController.deleteProfileImage);
+
 export default router;
