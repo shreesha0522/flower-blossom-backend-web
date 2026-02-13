@@ -6,12 +6,13 @@ import { upload } from "../middleware/uplaod.middleware";
 let authController = new AuthController();
 const router = Router();
 
-// ✅ Existing routes (not changed)
+// ✅ Named routes FIRST
 router.post("/login", authController.login);
 router.post("/register", authController.register);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password/:token", authController.resetPassword);
 
-// ✅ NEW: Update user profile with optional image
-// PUT /api/auth/:id
+// ✅ Wildcard route LAST
 router.put("/:id", isAuthenticated, upload.single("image"), authController.updateUser);
 
 export default router;

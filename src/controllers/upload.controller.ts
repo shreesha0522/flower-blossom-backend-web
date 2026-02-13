@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { UserService } from "../service/user.service";
+import fs from "fs";
+import path from "path";
 
 let userService = new UserService();
 
@@ -16,7 +18,6 @@ export class UploadController {
 
       // Get userId from request body
       const userId = req.body.userId as string;
-
       if (!userId) {
         return res.status(400).json({
           success: false,
@@ -50,8 +51,7 @@ export class UploadController {
   // Get user profile image
   async getProfileImage(req: Request, res: Response) {
     try {
-      const userId = req.params.userId as string;  // ← ADDED 'as string'
-
+      const userId = req.params.userId as string;
       if (!userId) {
         return res.status(400).json({
           success: false,
@@ -71,6 +71,47 @@ export class UploadController {
       return res.status(500).json({
         success: false,
         message: "Error fetching profile image",
+        error: error.message,
+      });
+    }
+  }
+
+  // Delete user profile image
+  async deleteProfileImage(req: Request, res: Response) {
+    try {
+      const userId = req.params.userId as string;
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required",
+        });
+      }
+
+      // Get the current image URL from database
+      const imageUrl = await userService.getUserProfileImage(userId);
+
+      if (imageUrl) {
+        // Delete the physical file from uploads folder
+        const filename = imageUrl.replace("/uploads/", "");
+        const filePath = path.join(__dirname, "../../uploads", filename);
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log("File deleted:", filePath);
+        }
+      }
+
+      // Remove image URL from user profile in database
+      await userService.deleteProfileImage(userId);
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile image deleted successfully",
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        message: "Error deleting profile image",
         error: error.message,
       });
     }
