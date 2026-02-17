@@ -7,8 +7,6 @@ import { HttpError } from "../error/http-error";
 import { UserModel } from "../models/user.model"; 
 import {sendEmail} from "../config/email";
 
-
-
 let userRepository = new UserRepository();
 
 export class UserService{
@@ -47,7 +45,7 @@ export class UserService{
     return {token, user};
   }
 
-  // ← ADD THESE TWO METHODS
+  // Update user profile image
   async updateProfileImage(userId: string, imageUrl: string) {
     try {
       const user = await UserModel.findByIdAndUpdate(
@@ -55,44 +53,59 @@ export class UserService{
         { profileImage: imageUrl },
         { new: true }
       ).select("-password");
-
+      
       if (!user) {
         throw new HttpError(404, "User not found");
       }
-
       return user;
     } catch (error: any) {
       throw new HttpError(500, error.message);
     }
   }
 
+  // Get user profile image
   async getUserProfileImage(userId: string) {
     try {
       const user = await UserModel.findById(userId).select("profileImage");
-      
       if (!user) {
         throw new HttpError(404, "User not found");
       }
-
       return user.profileImage;
     } catch (error: any) {
       throw new HttpError(500, error.message);
     }
-    
   }
-  async sendResetPasswordEmail(email?: string) {
-        if (!email) {
-            throw new HttpError(400, "Email is required");
-        }
-        const user = await userRepository.getUserByEmail(email);
-        if (!user) {
-            throw new HttpError(404, "User not found");
-        }
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' }); // 1 hour expiry
-        const resetLink = `${CLIENT_URL}/reset-password?token=${token}`;
-        const html = `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 1 hour.</p>`;
-        await sendEmail(user.email, "Password Reset", html);
-        return user;
 
+  // Delete user profile image
+  async deleteProfileImage(userId: string) {
+    try {
+      const user = await UserModel.findByIdAndUpdate(
+        userId,
+        { profileImage: null },
+        { new: true }
+      ).select("-password");
+      
+      if (!user) {
+        throw new HttpError(404, "User not found");
+      }
+      return user;
+    } catch (error: any) {
+      throw new HttpError(500, error.message);
     }
+  }
+
+  async sendResetPasswordEmail(email?: string) {
+    if (!email) {
+      throw new HttpError(400, "Email is required");
+    }
+    const user = await userRepository.getUserByEmail(email);
+    if (!user) {
+      throw new HttpError(404, "User not found");
+    }
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' }); // 1 hour expiry
+    const resetLink = `${CLIENT_URL}/reset-password?token=${token}`;
+    const html = `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 1 hour.</p>`;
+    await sendEmail(user.email, "Password Reset", html);
+    return user;
+  }
 }

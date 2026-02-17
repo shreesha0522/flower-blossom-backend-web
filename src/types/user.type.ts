@@ -8,8 +8,12 @@ export const UserSchema = z.object({
   lastName: z.string().optional(),
   profileImage: z.string().optional(),  
   role: z.enum(["user", "admin"]).default("user"),
-  bio: z.string().optional(),        // ✅ Must be here
-  phone: z.string().optional(),      // ✅ Must be here
+  bio: z.string().optional(),
+  phone: z.string().optional(),
+  
+  // 👇 ADD THESE - Make them optional and nullable
+  resetPasswordToken: z.string().nullable().optional(),
+  resetPasswordExpires: z.date().nullable().optional(),
 });
 
 export type UserType = z.infer<typeof UserSchema>;
