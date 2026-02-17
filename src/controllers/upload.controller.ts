@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import { UserService } from "../service/user.service";
 import fs from "fs";
 import path from "path";
@@ -6,6 +7,7 @@ import path from "path";
 let userService = new UserService();
 
 export class UploadController {
+
   async uploadProfileImage(req: Request, res: Response) {
     try {
       if (!req.file) {
@@ -33,6 +35,12 @@ export class UploadController {
           user: updatedUser,
           imageUrl: imageUrl,
         },
+        _links: {
+          self: { href: `/api/upload/profile-image`, method: "POST" },
+          getImage: { href: `/api/upload/profile-image/${userId}`, method: "GET" },
+          deleteImage: { href: `/api/upload/profile-image/${userId}`, method: "DELETE" },
+          getProfile: { href: `/api/profile/${userId}`, method: "GET" },
+        },
       });
     } catch (error: any) {
       return res.status(500).json({
@@ -58,6 +66,12 @@ export class UploadController {
       return res.status(200).json({
         success: true,
         data: { imageUrl },
+        _links: {
+          self: { href: `/api/upload/profile-image/${userId}`, method: "GET" },
+          upload: { href: `/api/upload/profile-image`, method: "POST" },
+          delete: { href: `/api/upload/profile-image/${userId}`, method: "DELETE" },
+          getProfile: { href: `/api/profile/${userId}`, method: "GET" },
+        },
       });
     } catch (error: any) {
       return res.status(500).json({
@@ -79,7 +93,6 @@ export class UploadController {
       }
 
       const imageUrl = await userService.getUserProfileImage(userId);
-
       if (imageUrl) {
         const filename = imageUrl.replace("/uploads/", "");
         const filePath = path.join(__dirname, "../../uploads", filename);
@@ -91,6 +104,11 @@ export class UploadController {
       return res.status(200).json({
         success: true,
         message: "Profile image deleted successfully",
+        _links: {
+          self: { href: `/api/upload/profile-image/${userId}`, method: "DELETE" },
+          upload: { href: `/api/upload/profile-image`, method: "POST" },
+          getProfile: { href: `/api/profile/${userId}`, method: "GET" },
+        },
       });
     } catch (error: any) {
       return res.status(500).json({

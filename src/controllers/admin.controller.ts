@@ -1,32 +1,15 @@
 import { Request, Response } from "express";
-import { UserModel } from "../models/user.model";
-import path from "path";
-import fs from "fs";
-import bcrypt from "bcryptjs";
+import { AdminService } from "../service/admin.service";
+
+const adminService = new AdminService();
 
 export class AdminController {
 
   createUser = async (req: Request, res: Response) => {
     try {
-      const { username, email, password, firstName, lastName, role } = req.body;
-
-      if (!username || !email || !password) {
-        return res.status(400).json({ success: false, message: "Username, email, and password are required" });
-      }
-
-      const existingUser = await UserModel.findOne({ email });
-      if (existingUser) return res.status(400).json({ success: false, message: "Email already exists" });
-
-      const existingUsername = await UserModel.findOne({ username });
-      if (existingUsername) return res.status(400).json({ success: false, message: "Username already exists" });
-
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      const userData: any = { username, email, password: hashedPassword, firstName: firstName || "", lastName: lastName || "", role: role || "user" };
-      if (req.file) userData.profileImage = `/uploads/${req.file.filename}`;
-
-      const newUser = await UserModel.create(userData);
+      
+      const imagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
+      const newUser = await adminService.createUser(req.body, imagePath);
 
       return res.status(201).json({
         success: true,
@@ -40,9 +23,18 @@ export class AdminController {
           role: newUser.role,
           profileImage: newUser.profileImage,
         },
+        _links: {
+          self: { href: `/api/admin/users/${newUser._id}`, method: "GET" },
+          update: { href: `/api/admin/users/${newUser._id}`, method: "PUT" },
+          delete: { href: `/api/admin/users/${newUser._id}`, method: "DELETE" },
+          allUsers: { href: `/api/admin/users`, method: "GET" },
+        },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to create user" });
+      return res.status(error.status ?? 500).json({
+        success: false,
+        message: error.message || "Failed to create user",
+      });
     }
   };
 
@@ -50,8 +42,6 @@ export class AdminController {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
-      const skip = (page - 1) * limit;
-
       const search = (req.query.search as string) || "";
       const role = (req.query.role as string) || "";
 
@@ -64,17 +54,9 @@ export class AdminController {
           { lastName: { $regex: search, $options: "i" } },
         ];
       }
-
       if (role && ["user", "admin"].includes(role)) query.role = role;
 
-      const totalUsers = await UserModel.countDocuments(query);
-      const totalPages = Math.ceil(totalUsers / limit);
-
-      const users = await UserModel.find(query)
-        .select("-password")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
+      const { users, totalUsers, totalPages } = await adminService.getAllUsers(query, page, limit);
 
       return res.status(200).json({
         success: true,
@@ -89,6 +71,11 @@ export class AdminController {
           profileImage: user.profileImage,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
+          _links: {
+            self: { href: `/api/admin/users/${user._id}`, method: "GET" },
+            update: { href: `/api/admin/users/${user._id}`, method: "PUT" },
+            delete: { href: `/api/admin/users/${user._id}`, method: "DELETE" },
+          },
         })),
         pagination: {
           totalUsers,
@@ -98,17 +85,25 @@ export class AdminController {
           hasNextPage: page < totalPages,
           hasPrevPage: page > 1,
         },
+        _links: {
+          self: { href: `/api/admin/users?page=${page}&limit=${limit}`, method: "GET" },
+          next: page < totalPages ? { href: `/api/admin/users?page=${page + 1}&limit=${limit}`, method: "GET" } : null,
+          prev: page > 1 ? { href: `/api/admin/users?page=${page - 1}&limit=${limit}`, method: "GET" } : null,
+          create: { href: `/api/admin/users`, method: "POST" },
+        },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to fetch users" });
+      return res.status(error.status ?? 500).json({
+        success: false,
+        message: error.message || "Failed to fetch users",
+      });
     }
   };
 
   getUserById = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      const user = await UserModel.findById(id).select("-password");
-      if (!user) return res.status(404).json({ success: false, message: "User not found" });
+      const id = req.params.id as string;
+      const user = await adminService.getUserById(id);
 
       return res.status(200).json({
         success: true,
@@ -125,29 +120,25 @@ export class AdminController {
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },
+        _links: {
+          self: { href: `/api/admin/users/${id}`, method: "GET" },
+          update: { href: `/api/admin/users/${id}`, method: "PUT" },
+          delete: { href: `/api/admin/users/${id}`, method: "DELETE" },
+          allUsers: { href: `/api/admin/users`, method: "GET" },
+        },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to fetch user" });
+      return res.status(error.status ?? 500).json({
+        success: false,
+        message: error.message || "Failed to fetch user",
+      });
     }
   };
 
   updateUser = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { username, email, firstName, lastName, role, bio, phone, removeImage } = req.body;
-
-      const existingUser = await UserModel.findById(id);
-      if (!existingUser) return res.status(404).json({ success: false, message: "User not found" });
-
-      if (email && email !== existingUser.email) {
-        const emailExists = await UserModel.findOne({ email });
-        if (emailExists) return res.status(400).json({ success: false, message: "Email already exists" });
-      }
-
-      if (username && username !== existingUser.username) {
-        const usernameExists = await UserModel.findOne({ username });
-        if (usernameExists) return res.status(400).json({ success: false, message: "Username already exists" });
-      }
 
       const updateData: any = {};
       if (username) updateData.username = username;
@@ -158,21 +149,11 @@ export class AdminController {
       if (bio !== undefined) updateData.bio = bio || null;
       if (phone !== undefined) updateData.phone = phone || null;
 
-      if (removeImage === "true" && existingUser.profileImage) {
-        const oldImagePath = path.join(process.cwd(), existingUser.profileImage);
-        if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
-        updateData.profileImage = "";
-      }
+      
+      const newImagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
+      const shouldRemoveImage = removeImage === "true";
 
-      if (req.file) {
-        if (existingUser.profileImage) {
-          const oldImagePath = path.join(process.cwd(), existingUser.profileImage);
-          if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
-        }
-        updateData.profileImage = `/uploads/${req.file.filename}`;
-      }
-
-      const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+      const updatedUser = await adminService.updateUser(id, updateData, newImagePath, shouldRemoveImage);
 
       return res.status(200).json({
         success: true,
@@ -190,34 +171,43 @@ export class AdminController {
           createdAt: updatedUser?.createdAt,
           updatedAt: updatedUser?.updatedAt,
         },
+        _links: {
+          self: { href: `/api/admin/users/${id}`, method: "GET" },
+          update: { href: `/api/admin/users/${id}`, method: "PUT" },
+          delete: { href: `/api/admin/users/${id}`, method: "DELETE" },
+          allUsers: { href: `/api/admin/users`, method: "GET" },
+        },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to update user" });
+      return res.status(error.status ?? 500).json({
+        success: false,
+        message: error.message || "Failed to update user",
+      });
     }
   };
 
   deleteUser = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const currentUser = (req as any).user;
+      const currentUserId = currentUser._id?.toString() || currentUser.id;
 
-      if (currentUser.id === id || currentUser._id?.toString() === id) {
-        return res.status(400).json({ success: false, message: "You cannot delete your own account" });
-      }
+      
+      await adminService.deleteUser(id, currentUserId);
 
-      const user = await UserModel.findById(id);
-      if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-      if (user.profileImage) {
-        const imagePath = path.join(process.cwd(), user.profileImage);
-        if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
-      }
-
-      await UserModel.findByIdAndDelete(id);
-
-      return res.status(200).json({ success: true, message: "User deleted successfully" });
+      return res.status(200).json({
+        success: true,
+        message: "User deleted successfully",
+        _links: {
+          allUsers: { href: `/api/admin/users`, method: "GET" },
+          create: { href: `/api/admin/users`, method: "POST" },
+        },
+      });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to delete user" });
+      return res.status(error.status ?? 500).json({
+        success: false,
+        message: error.message || "Failed to delete user",
+      });
     }
   };
 }

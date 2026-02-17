@@ -33,10 +33,19 @@ export class AuthController {
       const userData: CreateUserDTO = parsedData.data;
       const newUser = await userService.createUser(userData);
 
+      // ✅ Fixed: cast to any to safely access _id
+      const userId = (newUser as any)._id?.toString();
+
       return res.status(201).json({
         success: true,
         message: "User created",
         data: newUser,
+        _links: {
+          self: { href: `/api/auth/register`, method: "POST" },
+          login: { href: `/api/auth/login`, method: "POST" },
+          updateProfile: { href: `/api/auth/${userId}`, method: "PUT" },
+          getProfile: { href: `/api/profile/${userId}`, method: "GET" },
+        },
       });
     } catch (error: any) {
       return res.status(error.status ?? error.statusCode ?? 500).json({
@@ -59,11 +68,20 @@ export class AuthController {
       const userData: LoginUserDTO = parsedData.data;
       const { token, user } = await userService.loginUser(userData);
 
+      // ✅ Fixed: cast to any to safely access _id
+      const userId = (user as any)._id?.toString();
+
       return res.status(200).json({
         success: true,
         message: "Login successful",
         data: user,
         token,
+        _links: {
+          self: { href: `/api/auth/login`, method: "POST" },
+          updateProfile: { href: `/api/auth/${userId}`, method: "PUT" },
+          getProfile: { href: `/api/profile/${userId}`, method: "GET" },
+          forgotPassword: { href: `/api/auth/forgot-password`, method: "POST" },
+        },
       });
     } catch (error: any) {
       return res.status(error.status ?? error.statusCode ?? 500).json({
@@ -75,10 +93,11 @@ export class AuthController {
 
   updateUser = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const currentUser = (req as any).user;
 
-      if (currentUser.id !== id) {
+      // ✅ Fixed: use _id instead of id
+      if (currentUser._id?.toString() !== id) {
         return res.status(403).json({
           success: false,
           message: "You can only update your own profile",
@@ -88,11 +107,15 @@ export class AuthController {
       const { firstName, lastName, email, bio, phone, removeImage } = req.body;
 
       const existingUser = await UserModel.findById(id);
-      if (!existingUser) return res.status(404).json({ success: false, message: "User not found" });
+      if (!existingUser) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
 
       if (email && email !== existingUser.email) {
         const emailExists = await UserModel.findOne({ email });
-        if (emailExists) return res.status(400).json({ success: false, message: "Email already exists" });
+        if (emailExists) {
+          return res.status(400).json({ success: false, message: "Email already exists" });
+        }
       }
 
       const updateData: any = {};
@@ -116,7 +139,10 @@ export class AuthController {
         updateData.profileImage = `/uploads/${req.file.filename}`;
       }
 
-      const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+      const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true,
+      });
 
       return res.status(200).json({
         success: true,
@@ -132,6 +158,11 @@ export class AuthController {
           role: updatedUser?.role,
           profileImage: updatedUser?.profileImage,
         },
+        _links: {
+          self: { href: `/api/auth/${id}`, method: "PUT" },
+          getProfile: { href: `/api/profile/${id}`, method: "GET" },
+          uploadImage: { href: `/api/upload/profile-image`, method: "POST" },
+        },
       });
     } catch (error: any) {
       return res.status(error.status ?? error.statusCode ?? 500).json({
@@ -144,10 +175,14 @@ export class AuthController {
   forgotPassword = async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
-      if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+      if (!email) {
+        return res.status(400).json({ success: false, message: "Email is required" });
+      }
 
       const user = await UserModel.findOne({ email: email.toLowerCase() });
-      if (!user) return res.status(404).json({ success: false, message: "No account found with this email" });
+      if (!user) {
+        return res.status(404).json({ success: false, message: "No account found with this email" });
+      }
 
       const resetToken = crypto.randomBytes(32).toString("hex");
       const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
@@ -173,7 +208,14 @@ export class AuthController {
 
       await transporter.sendMail(mailOptions);
 
-      return res.status(200).json({ success: true, message: "Password reset link sent to your email" });
+      return res.status(200).json({
+        success: true,
+        message: "Password reset link sent to your email",
+        _links: {
+          self: { href: `/api/auth/forgot-password`, method: "POST" },
+          login: { href: `/api/auth/login`, method: "POST" },
+        },
+      });
     } catch (error: any) {
       return res.status(error.status ?? error.statusCode ?? 500).json({
         success: false,
@@ -187,8 +229,12 @@ export class AuthController {
       const token = req.params.token as string;
       const { newPassword } = req.body;
 
-      if (!newPassword) return res.status(400).json({ success: false, message: "New password is required" });
-      if (newPassword.length < 6) return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+      if (!newPassword) {
+        return res.status(400).json({ success: false, message: "New password is required" });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+      }
 
       const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
       const user = await UserModel.findOne({
@@ -196,14 +242,23 @@ export class AuthController {
         resetPasswordExpires: { $gt: Date.now() },
       });
 
-      if (!user) return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
+      if (!user) {
+        return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
+      }
 
       user.password = await bcrypt.hash(newPassword, 10);
       user.resetPasswordToken = null as any;
       user.resetPasswordExpires = null as any;
       await user.save();
 
-      return res.status(200).json({ success: true, message: "Password reset successful! You can now login." });
+      return res.status(200).json({
+        success: true,
+        message: "Password reset successful! You can now login.",
+        _links: {
+          self: { href: `/api/auth/reset-password/${token}`, method: "POST" },
+          login: { href: `/api/auth/login`, method: "POST" },
+        },
+      });
     } catch (error: any) {
       return res.status(error.status ?? error.statusCode ?? 500).json({
         success: false,

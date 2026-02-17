@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { UserModel } from "../models/user.model";
 
 export class ProfileController {
+
   async updateProfile(req: Request, res: Response) {
     try {
       const { userId, name, email, bio, phone } = req.body;
@@ -10,6 +11,14 @@ export class ProfileController {
         return res.status(400).json({
           success: false,
           message: "userId, name, and email are required",
+        });
+      }
+
+      const currentUser = (req as any).user;
+      if (currentUser._id?.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only update your own profile",
         });
       }
 
@@ -51,6 +60,12 @@ export class ProfileController {
           phone: updatedUser.phone || null,
           image: updatedUser.profileImage,
         },
+        _links: {
+          self: { href: `/api/profile/${userId}`, method: "GET" },
+          update: { href: `/api/profile/update`, method: "PUT" },
+          uploadImage: { href: `/api/upload/profile-image`, method: "POST" },
+          deleteImage: { href: `/api/upload/profile-image/${userId}`, method: "DELETE" },
+        },
       });
     } catch (error: any) {
       if (error.code === 11000) {
@@ -59,7 +74,6 @@ export class ProfileController {
           message: "Email already exists",
         });
       }
-
       return res.status(500).json({
         success: false,
         message: error.message || "Failed to update profile",
@@ -72,7 +86,6 @@ export class ProfileController {
       const { userId } = req.params;
 
       const user = await UserModel.findById(userId);
-
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -89,6 +102,12 @@ export class ProfileController {
           bio: user.bio || null,
           phone: user.phone || null,
           image: user.profileImage,
+        },
+        _links: {
+          self: { href: `/api/profile/${userId}`, method: "GET" },
+          update: { href: `/api/profile/update`, method: "PUT" },
+          uploadImage: { href: `/api/upload/profile-image`, method: "POST" },
+          deleteImage: { href: `/api/upload/profile-image/${userId}`, method: "DELETE" },
         },
       });
     } catch (error: any) {
