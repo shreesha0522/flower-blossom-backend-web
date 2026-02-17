@@ -1,19 +1,18 @@
 import { Router } from "express";
 import { AuthController } from "../controllers/auth.controller";
-import { verifyToken } from "../middlewares/auth.middlewares";
+import { isAuthenticated } from "../middleware/admin.middleware";
+import { upload } from "../middleware/uplaod.middleware";
 
-
+let authController = new AuthController();
 const router = Router();
-const authController = new AuthController();
 
-// ================= AUTH ROUTES =================
-// Register
-router.post("/register", authController.register.bind(authController));
+// ✅ Named routes FIRST
+router.post("/login", authController.login);
+router.post("/register", authController.register);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password/:token", authController.resetPassword);
 
-// Login
-router.post("/login", authController.login.bind(authController));
-
-// Get current user (protected with verifyToken middleware)
-router.get("/me", verifyToken, authController.me.bind(authController));
+// ✅ Wildcard route LAST
+router.put("/:id", isAuthenticated, upload.single("image"), authController.updateUser);
 
 export default router;
