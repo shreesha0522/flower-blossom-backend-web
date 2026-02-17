@@ -1,22 +1,38 @@
-import express from "express";
-import { connectDatabase } from "./database/mongodb";
-import authRoutes from "./routes/auth.route";
+import express, { Application } from "express";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import cors from "cors";
+import morgan from "morgan";
+import authRouter from "./routes/auth.route";
+import uploadRouter from "./routes/upload.route";
+import profileRouter from "./routes/profile.route";
+import adminRouter from "./routes/admin.route";
 
-const app = express();
+dotenv.config();
 
-// MongoDB connection
-connectDatabase();
+const app: Application = express();
 
-// JSON parser
-app.use(express.json());
+// ✅ CORS options (FIXED)
+const corsOptions = {
+  origin: ["http://localhost:3000", "http://localhost:3005", "http://localhost:8000"],
+  credentials: true  // ✅ ADDED THIS
+};
+app.use(cors(corsOptions));
 
-// Register routes
-app.use("/api/auth", authRoutes);
+// ✅ Logger
+app.use(morgan("dev"));
 
-// Default route
-app.get("/", (req, res) => res.send("🌸 Flower Blossom Backend is running!"));
+// ✅ JSON parser
+app.use(bodyParser.json());
 
-// Use host port or fallback to 3000
-const PORT = process.env.PORT || 3000;
+// ✅ Serve uploaded images as static files
+app.use("/uploads", express.static("uploads"));
 
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+// ✅ Routes
+app.use("/api/auth", authRouter);
+app.use("/api/upload", uploadRouter);
+app.use("/api/profile", profileRouter);
+app.use("/api/admin", adminRouter);
+
+// ✅ Export the app
+export default app;
