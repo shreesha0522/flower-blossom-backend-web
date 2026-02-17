@@ -39,7 +39,7 @@ export class AuthController {
         data: newUser,
       });
     } catch (error: any) {
-      return res.status(error.status ?? 500).json({
+      return res.status(error.status ?? error.statusCode ?? 500).json({
         success: false,
         message: error.message ?? "Internal Server Error",
       });
@@ -66,7 +66,7 @@ export class AuthController {
         token,
       });
     } catch (error: any) {
-      return res.status(error.status ?? 500).json({
+      return res.status(error.status ?? error.statusCode ?? 500).json({
         success: false,
         message: error.message || "Internal Server Error",
       });
@@ -134,7 +134,10 @@ export class AuthController {
         },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to update user" });
+      return res.status(error.status ?? error.statusCode ?? 500).json({
+        success: false,
+        message: error.message || "Failed to update user",
+      });
     }
   };
 
@@ -172,7 +175,10 @@ export class AuthController {
 
       return res.status(200).json({ success: true, message: "Password reset link sent to your email" });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to send reset email" });
+      return res.status(error.status ?? error.statusCode ?? 500).json({
+        success: false,
+        message: error.message || "Failed to send reset email",
+      });
     }
   };
 
@@ -199,7 +205,10 @@ export class AuthController {
 
       return res.status(200).json({ success: true, message: "Password reset successful! You can now login." });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message || "Failed to reset password" });
+      return res.status(error.status ?? error.statusCode ?? 500).json({
+        success: false,
+        message: error.message || "Failed to reset password",
+      });
     }
   };
 }

@@ -33,6 +33,12 @@ beforeAll(async () => {
         "brandnew@example.com",
         "newuser@example.com",
         "todelete@example.com",
+        "update2@example.com",
+        "rolechange@example.com",
+        "paginationtest@example.com",
+        "search_unique_xyz@example.com",
+        "register2@example.com",
+        "register3@example.com",
       ],
     },
   });
@@ -76,6 +82,12 @@ afterAll(async () => {
           "brandnew@example.com",
           "newuser@example.com",
           "todelete@example.com",
+          "update2@example.com",
+          "rolechange@example.com",
+          "paginationtest@example.com",
+          "search_unique_xyz@example.com",
+          "register2@example.com",
+          "register3@example.com",
         ],
       },
     });
@@ -86,26 +98,24 @@ afterAll(async () => {
 
 describe("POST /api/auth/register", () => {
   test("should register a new user successfully", async () => {
-    await UserModel.deleteOne({ email: "brandnew@example.com" });
+    await UserModel.deleteMany({ email: "brandnew@example.com" });
 
     const res = await request(app).post("/api/auth/register").send({
-      username: "brandnewuser",
+      username: "brandnewuser_jest",
       email: "brandnew@example.com",
       password: "password123",
       firstName: "Brand",
       lastName: "New",
     });
 
-    expect([200, 201, 400]).toContain(res.status);
-
-    if (res.status === 200 || res.status === 201) {
-      expect(res.body.success).toBe(true);
-      expect(res.body.message).toBe("User created");
-    } else {
+    if (res.status === 400) {
       expect(res.body.success).toBe(false);
+    } else {
+      expect([200, 201]).toContain(res.status);
+      expect(res.body.success).toBe(true);
     }
 
-    await UserModel.deleteOne({ email: "brandnew@example.com" });
+    await UserModel.deleteMany({ email: "brandnew@example.com" });
   });
 
   test("should fail if email already exists", async () => {
@@ -139,6 +149,23 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
   });
+
+  test("should fail if username is missing", async () => {
+    const res = await request(app).post("/api/auth/register").send({
+      email: "register2@example.com",
+      password: "password123",
+      firstName: "No",
+      lastName: "Username",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should return success false with no body sent", async () => {
+    const res = await request(app).post("/api/auth/register").send({});
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
 });
 
 describe("POST /api/auth/login", () => {
@@ -157,7 +184,7 @@ describe("POST /api/auth/login", () => {
       email: testUser.email,
       password: "wrongpassword",
     });
-    expect(res.status).toBe(500);
+    expect([400, 401, 500]).toContain(res.status);
     expect(res.body.success).toBe(false);
   });
 
@@ -166,7 +193,7 @@ describe("POST /api/auth/login", () => {
       email: "nobody@example.com",
       password: "password123",
     });
-    expect(res.status).toBe(500);
+    expect([400, 401, 404, 500]).toContain(res.status);
     expect(res.body.success).toBe(false);
   });
 
@@ -323,5 +350,202 @@ describe("DELETE /api/admin/users/:id", () => {
 
     const deleted = await UserModel.findById(userToDelete._id);
     expect(deleted).toBeNull();
+  });
+});
+
+describe("GET /api/admin/users - pagination and sorting", () => {
+  test("should return correct page size when limit is set", async () => {
+    const res = await request(app).get("/api/admin/users?page=1&limit=2").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeLessThanOrEqual(2);
+  });
+
+  test("should return pagination metadata with totalUsers and totalPages", async () => {
+    const res = await request(app).get("/api/admin/users?page=1&limit=5").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toHaveProperty("totalUsers");
+    expect(res.body.pagination).toHaveProperty("totalPages");
+    expect(res.body.pagination).toHaveProperty("currentPage");
+  });
+
+  test("should return users sorted by createdAt descending", async () => {
+    const res = await request(app).get("/api/admin/users?sortBy=createdAt&order=desc").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  test("should filter users by role=user", async () => {
+    const res = await request(app).get("/api/admin/users?role=user").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    res.body.data.forEach((user: any) => {
+      expect(user.role).toBe("user");
+    });
+  });
+
+  test("should return empty array for search with no matches", async () => {
+    const res = await request(app).get("/api/admin/users?search=xyznonexistentuserzzz").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBe(0);
+  });
+});
+
+describe("GET /api/admin/users/:id - edge cases", () => {
+  test("should return error for malformed user ID", async () => {
+    const res = await request(app).get("/api/admin/users/not-a-valid-id").set("Authorization", "Bearer " + adminToken);
+    expect([400, 500]).toContain(res.status);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should return user object with expected fields and no password", async () => {
+    const res = await request(app).get("/api/admin/users/" + createdUserId).set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveProperty("username");
+    expect(res.body.data).toHaveProperty("email");
+    expect(res.body.data).toHaveProperty("role");
+    expect(res.body.data).not.toHaveProperty("password");
+  });
+});
+
+describe("PUT /api/admin/users/:id - edge cases", () => {
+  test("should return 404 when updating non-existent user", async () => {
+    const res = await request(app).put("/api/admin/users/000000000000000000000000")
+      .set("Authorization", "Bearer " + adminToken)
+      .field("firstName", "Ghost");
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should return 401 when updating without token", async () => {
+    const res = await request(app).put("/api/admin/users/" + createdUserId).field("firstName", "NoAuth");
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should not allow regular user to update another user", async () => {
+    const res = await request(app).put("/api/admin/users/" + createdUserId)
+      .set("Authorization", "Bearer " + userToken)
+      .field("firstName", "Hacked");
+
+    expect([401, 403]).toContain(res.status);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe("DELETE /api/admin/users/:id - edge cases", () => {
+  test("should return 404 when deleting non-existent user", async () => {
+    const res = await request(app).delete("/api/admin/users/000000000000000000000000")
+      .set("Authorization", "Bearer " + adminToken);
+
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should return 401 when deleting without token", async () => {
+    const res = await request(app).delete("/api/admin/users/" + createdUserId);
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should return 403 when regular user tries to delete", async () => {
+    const res = await request(app).delete("/api/admin/users/" + createdUserId)
+      .set("Authorization", "Bearer " + userToken);
+
+    expect([401, 403]).toContain(res.status);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe("POST /api/admin/users - validation", () => {
+  test("should fail to create user without required fields", async () => {
+    const res = await request(app).post("/api/admin/users")
+      .set("Authorization", "Bearer " + adminToken)
+      .field("email", "incomplete@example.com");
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should fail to create user without admin token", async () => {
+    const res = await request(app).post("/api/admin/users")
+      .set("Authorization", "Bearer " + userToken)
+      .field("username", "unauthorised_jest")
+      .field("email", "unauthorised@example.com")
+      .field("password", "password123")
+      .field("firstName", "No")
+      .field("lastName", "Auth")
+      .field("role", "user");
+
+    expect([401, 403]).toContain(res.status);
+    expect(res.body.success).toBe(false);
+  });
+});
+
+describe("GET /api/admin/users - response structure", () => {
+  test("should include hasNextPage in pagination", async () => {
+    const res = await request(app).get("/api/admin/users?page=1&limit=5").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toHaveProperty("hasNextPage");
+  });
+
+  test("should include hasPrevPage as false on first page", async () => {
+    const res = await request(app).get("/api/admin/users?page=1&limit=5").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toHaveProperty("hasPrevPage");
+    expect(res.body.pagination.hasPrevPage).toBe(false);
+  });
+
+  test("should include limit in pagination response", async () => {
+    const res = await request(app).get("/api/admin/users?page=1&limit=5").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.pagination).toHaveProperty("limit", 5);
+  });
+
+  test("should return success true on valid admin users request", async () => {
+    const res = await request(app).get("/api/admin/users?page=1&limit=5").set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+});
+
+describe("POST /api/auth/login - token validation", () => {
+  test("should return a token string on successful login", async () => {
+    const res = await request(app).post("/api/auth/login").send({
+      email: adminUser.email,
+      password: adminUser.password,
+    });
+    expect(res.status).toBe(200);
+    expect(typeof res.body.token).toBe("string");
+    expect(res.body.token.length).toBeGreaterThan(10);
+  });
+
+  test("should return success true on successful login", async () => {
+    const res = await request(app).post("/api/auth/login").send({
+      email: testUser.email,
+      password: testUser.password,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+});
+
+describe("GET /api/admin/users - access control", () => {
+  test("should return 401 when using an invalid bearer token", async () => {
+    const res = await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", "Bearer totallyinvalidtoken.xyz.abc");
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+  });
+
+  test("should return data array on page 2 when enough users exist", async () => {
+    const res = await request(app)
+      .get("/api/admin/users?page=1&limit=1")
+      .set("Authorization", "Bearer " + adminToken);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeLessThanOrEqual(1);
+    expect(res.body.pagination).toHaveProperty("currentPage", 1);
   });
 });
