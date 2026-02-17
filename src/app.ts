@@ -12,27 +12,18 @@ dotenv.config();
 
 const app: Application = express();
 
-// ✅ CORS options (FIXED)
 const corsOptions = {
   origin: ["http://localhost:3000", "http://localhost:3005", "http://localhost:8000"],
-  credentials: true  // ✅ ADDED THIS
+  credentials: true
 };
 app.use(cors(corsOptions));
-
-// ✅ Logger
 app.use(morgan("dev"));
-
-// ✅ JSON parser
 app.use(bodyParser.json());
-
-// ✅ Serve uploaded images as static files
 app.use("/uploads", express.static("uploads"));
 
-// ✅ Routes
 app.use("/api/auth", authRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/admin", adminRouter);
 
-// ✅ Export the app
 export default app;

@@ -6,7 +6,6 @@ import path from "path";
 let userService = new UserService();
 
 export class UploadController {
-  // Upload profile image and save to user profile
   async uploadProfileImage(req: Request, res: Response) {
     try {
       if (!req.file) {
@@ -16,7 +15,6 @@ export class UploadController {
         });
       }
 
-      // Get userId from request body
       const userId = req.body.userId as string;
       if (!userId) {
         return res.status(400).json({
@@ -25,10 +23,7 @@ export class UploadController {
         });
       }
 
-      // Get the uploaded file info
       const imageUrl = `/uploads/${req.file.filename}`;
-
-      // Save image URL to user profile in MongoDB
       const updatedUser = await userService.updateProfileImage(userId, imageUrl);
 
       return res.status(200).json({
@@ -48,7 +43,6 @@ export class UploadController {
     }
   }
 
-  // Get user profile image
   async getProfileImage(req: Request, res: Response) {
     try {
       const userId = req.params.userId as string;
@@ -63,9 +57,7 @@ export class UploadController {
 
       return res.status(200).json({
         success: true,
-        data: {
-          imageUrl: imageUrl,
-        },
+        data: { imageUrl },
       });
     } catch (error: any) {
       return res.status(500).json({
@@ -76,7 +68,6 @@ export class UploadController {
     }
   }
 
-  // Delete user profile image
   async deleteProfileImage(req: Request, res: Response) {
     try {
       const userId = req.params.userId as string;
@@ -87,21 +78,14 @@ export class UploadController {
         });
       }
 
-      // Get the current image URL from database
       const imageUrl = await userService.getUserProfileImage(userId);
 
       if (imageUrl) {
-        // Delete the physical file from uploads folder
         const filename = imageUrl.replace("/uploads/", "");
         const filePath = path.join(__dirname, "../../uploads", filename);
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log("File deleted:", filePath);
-        }
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       }
 
-      // Remove image URL from user profile in database
       await userService.deleteProfileImage(userId);
 
       return res.status(200).json({

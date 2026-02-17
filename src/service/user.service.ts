@@ -5,47 +5,44 @@ import jwt from "jsonwebtoken";
 import { CLIENT_URL, JWT_SECRET } from "../config";
 import { HttpError } from "../error/http-error";
 import { UserModel } from "../models/user.model"; 
-import {sendEmail} from "../config/email";
+import { sendEmail } from "../config/email";
 
-let userRepository = new UserRepository();
+const userRepository = new UserRepository();
 
-export class UserService{
-  async createUser(data:CreateUserDTO) {
+export class UserService {
+  async createUser(data: CreateUserDTO) {
     const emailCheck = await userRepository.getUserByEmail(data.email);
-    if(emailCheck) {
-      throw new HttpError(403,"Email already in use"); 
-    }
+    if (emailCheck) throw new HttpError(403, "Email already in use");
+
     const hashedPassword = await bcryptjs.hash(data.password, 10);
     data.password = hashedPassword;
+
     const usernameCheck = await userRepository.getUserByUsername(data.username);
-    if(usernameCheck){
-      throw new HttpError(403,"Username already in use")
-    }
+    if (usernameCheck) throw new HttpError(403, "Username already in use");
+
     const newUser = await userRepository.createUser(data);
     return newUser;
   }
 
-  async loginUser(data: LoginUserDTO){
+  async loginUser(data: LoginUserDTO) {
     const user = await userRepository.getUserByEmail(data.email);
-    if(!user) {
-      throw new HttpError(404,"No user found")
-    }
+    if (!user) throw new HttpError(404, "No user found");
+
     const validPassword = await bcryptjs.compare(data.password, user.password);
-    if(!validPassword){
-      throw new HttpError(401,"Invalid Credentials")
-    }
+    if (!validPassword) throw new HttpError(401, "Invalid Credentials");
+
     const payload = {
       id: user._id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      role: user.role
-    }
-    const token = jwt.sign(payload, JWT_SECRET, {expiresIn: "30d"});
-    return {token, user};
+      role: user.role,
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
+    return { token, user };
   }
 
-  // Update user profile image
   async updateProfileImage(userId: string, imageUrl: string) {
     try {
       const user = await UserModel.findByIdAndUpdate(
@@ -53,30 +50,24 @@ export class UserService{
         { profileImage: imageUrl },
         { new: true }
       ).select("-password");
-      
-      if (!user) {
-        throw new HttpError(404, "User not found");
-      }
+
+      if (!user) throw new HttpError(404, "User not found");
       return user;
     } catch (error: any) {
       throw new HttpError(500, error.message);
     }
   }
 
-  // Get user profile image
   async getUserProfileImage(userId: string) {
     try {
       const user = await UserModel.findById(userId).select("profileImage");
-      if (!user) {
-        throw new HttpError(404, "User not found");
-      }
+      if (!user) throw new HttpError(404, "User not found");
       return user.profileImage;
     } catch (error: any) {
       throw new HttpError(500, error.message);
     }
   }
 
-  // Delete user profile image
   async deleteProfileImage(userId: string) {
     try {
       const user = await UserModel.findByIdAndUpdate(
@@ -84,10 +75,8 @@ export class UserService{
         { profileImage: null },
         { new: true }
       ).select("-password");
-      
-      if (!user) {
-        throw new HttpError(404, "User not found");
-      }
+
+      if (!user) throw new HttpError(404, "User not found");
       return user;
     } catch (error: any) {
       throw new HttpError(500, error.message);
@@ -95,16 +84,15 @@ export class UserService{
   }
 
   async sendResetPasswordEmail(email?: string) {
-    if (!email) {
-      throw new HttpError(400, "Email is required");
-    }
+    if (!email) throw new HttpError(400, "Email is required");
+
     const user = await userRepository.getUserByEmail(email);
-    if (!user) {
-      throw new HttpError(404, "User not found");
-    }
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' }); // 1 hour expiry
+    if (!user) throw new HttpError(404, "User not found");
+
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "1h" });
     const resetLink = `${CLIENT_URL}/reset-password?token=${token}`;
     const html = `<p>Click <a href="${resetLink}">here</a> to reset your password. This link will expire in 1 hour.</p>`;
+
     await sendEmail(user.email, "Password Reset", html);
     return user;
   }

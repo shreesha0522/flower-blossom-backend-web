@@ -9,21 +9,13 @@ const UserSchema: Schema = new Schema<UserType>(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     profileImage: { type: String, default: "" },
-    role: {
-      type: String, 
-      enum: ["user", "admin"],
-      default: "user"
-    },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
     bio: { type: String, default: null },
     phone: { type: String, default: null },
-    
-    // 👇 ADD THESE TWO NEW FIELDS FOR PASSWORD RESET
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
-  }, 
-  {
-    timestamps: true
-  }
+  },
+  { timestamps: true }
 );
 
 export interface IUser extends UserType, Document {
