@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 
 export class AdminController {
 
-  // ✅ 1. CREATE A NEW USER
   createUser = async (req: Request, res: Response) => {
     try {
       const { username, email, password, firstName, lastName, role } = req.body;
@@ -16,33 +15,18 @@ export class AdminController {
       }
 
       const existingUser = await UserModel.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ success: false, message: "Email already exists" });
-      }
+      if (existingUser) return res.status(400).json({ success: false, message: "Email already exists" });
 
       const existingUsername = await UserModel.findOne({ username });
-      if (existingUsername) {
-        return res.status(400).json({ success: false, message: "Username already exists" });
-      }
+      if (existingUsername) return res.status(400).json({ success: false, message: "Username already exists" });
 
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
-      const userData: any = {
-        username,
-        email,
-        password: hashedPassword,
-        firstName: firstName || "",
-        lastName: lastName || "",
-        role: role || "user",
-      };
-
-      if (req.file) {
-        userData.profileImage = `/uploads/${req.file.filename}`;
-      }
+      const userData: any = { username, email, password: hashedPassword, firstName: firstName || "", lastName: lastName || "", role: role || "user" };
+      if (req.file) userData.profileImage = `/uploads/${req.file.filename}`;
 
       const newUser = await UserModel.create(userData);
-      console.log("✅ User created:", newUser.email);
 
       return res.status(201).json({
         success: true,
@@ -58,27 +42,20 @@ export class AdminController {
         },
       });
     } catch (error: any) {
-      console.error("❌ Create user error:", error);
       return res.status(500).json({ success: false, message: error.message || "Failed to create user" });
     }
   };
 
-  // ✅ 2. GET ALL USERS WITH PAGINATION
-  // GET /api/admin/users?page=1&limit=10&search=john&role=user
   getAllUsers = async (req: Request, res: Response) => {
     try {
-      // ✅ Pagination params
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
       const skip = (page - 1) * limit;
 
-      // ✅ Search + filter params
       const search = (req.query.search as string) || "";
       const role = (req.query.role as string) || "";
 
-      // ✅ Build query
       const query: any = {};
-
       if (search) {
         query.$or = [
           { username: { $regex: search, $options: "i" } },
@@ -88,15 +65,11 @@ export class AdminController {
         ];
       }
 
-      if (role && ["user", "admin"].includes(role)) {
-        query.role = role;
-      }
+      if (role && ["user", "admin"].includes(role)) query.role = role;
 
-      // ✅ Get total count for pagination
       const totalUsers = await UserModel.countDocuments(query);
       const totalPages = Math.ceil(totalUsers / limit);
 
-      // ✅ Fetch paginated users
       const users = await UserModel.find(query)
         .select("-password")
         .sort({ createdAt: -1 })
@@ -127,20 +100,15 @@ export class AdminController {
         },
       });
     } catch (error: any) {
-      console.error("❌ Get all users error:", error);
       return res.status(500).json({ success: false, message: error.message || "Failed to fetch users" });
     }
   };
 
-  // ✅ 3. GET SINGLE USER BY ID
   getUserById = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const user = await UserModel.findById(id).select("-password");
-
-      if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
+      if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
       return res.status(200).json({
         success: true,
@@ -159,34 +127,26 @@ export class AdminController {
         },
       });
     } catch (error: any) {
-      console.error("❌ Get user by ID error:", error);
       return res.status(500).json({ success: false, message: error.message || "Failed to fetch user" });
     }
   };
 
-  // ✅ 4. UPDATE USER BY ID
   updateUser = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const { username, email, firstName, lastName, role, bio, phone, removeImage } = req.body;
 
       const existingUser = await UserModel.findById(id);
-      if (!existingUser) {
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
+      if (!existingUser) return res.status(404).json({ success: false, message: "User not found" });
 
       if (email && email !== existingUser.email) {
         const emailExists = await UserModel.findOne({ email });
-        if (emailExists) {
-          return res.status(400).json({ success: false, message: "Email already exists" });
-        }
+        if (emailExists) return res.status(400).json({ success: false, message: "Email already exists" });
       }
 
       if (username && username !== existingUser.username) {
         const usernameExists = await UserModel.findOne({ username });
-        if (usernameExists) {
-          return res.status(400).json({ success: false, message: "Username already exists" });
-        }
+        if (usernameExists) return res.status(400).json({ success: false, message: "Username already exists" });
       }
 
       const updateData: any = {};
@@ -198,11 +158,9 @@ export class AdminController {
       if (bio !== undefined) updateData.bio = bio || null;
       if (phone !== undefined) updateData.phone = phone || null;
 
-      if (removeImage === "true") {
-        if (existingUser.profileImage) {
-          const oldImagePath = path.join(process.cwd(), existingUser.profileImage);
-          if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
-        }
+      if (removeImage === "true" && existingUser.profileImage) {
+        const oldImagePath = path.join(process.cwd(), existingUser.profileImage);
+        if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
         updateData.profileImage = "";
       }
 
@@ -215,7 +173,6 @@ export class AdminController {
       }
 
       const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
-      console.log("✅ User updated:", updatedUser?.email);
 
       return res.status(200).json({
         success: true,
@@ -235,12 +192,10 @@ export class AdminController {
         },
       });
     } catch (error: any) {
-      console.error("❌ Update user error:", error);
       return res.status(500).json({ success: false, message: error.message || "Failed to update user" });
     }
   };
 
-  // ✅ 5. DELETE USER BY ID
   deleteUser = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -251,9 +206,7 @@ export class AdminController {
       }
 
       const user = await UserModel.findById(id);
-      if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
+      if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
       if (user.profileImage) {
         const imagePath = path.join(process.cwd(), user.profileImage);
@@ -261,11 +214,9 @@ export class AdminController {
       }
 
       await UserModel.findByIdAndDelete(id);
-      console.log("✅ User deleted:", user.email);
 
       return res.status(200).json({ success: true, message: "User deleted successfully" });
     } catch (error: any) {
-      console.error("❌ Delete user error:", error);
       return res.status(500).json({ success: false, message: error.message || "Failed to delete user" });
     }
   };

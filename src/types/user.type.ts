@@ -11,7 +11,6 @@ export const UserSchema = z.object({
   bio: z.string().optional(),
   phone: z.string().optional(),
   
-  // 👇 ADD THESE - Make them optional and nullable
   resetPasswordToken: z.string().nullable().optional(),
   resetPasswordExpires: z.date().nullable().optional(),
 });
