@@ -15,7 +15,7 @@ export class ProfileController {
       }
 
       const currentUser = (req as any).user;
-      if (currentUser._id?.toString() !== userId) {
+if (currentUser.id?.toString() !== userId.toString()) {
         return res.status(403).json({
           success: false,
           message: "You can only update your own profile",
