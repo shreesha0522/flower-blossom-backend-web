@@ -1,12 +1,23 @@
 import { Request, Response } from "express";
 import { UserModel } from "../models/user.model";
 
+/**
+ * @class ProfileController
+ * @desc Handles user profile operations including viewing and updating profile information
+ */
 export class ProfileController {
 
+  /**
+   * @desc    Update authenticated user's profile information
+   * @route   PUT /api/profile/update
+   * @access  Private (Authenticated user - own profile only)
+   * @param   {Request} req - Express request object containing userId, name, email, bio, phone in body and optional image file
+   * @param   {Response} res - Express response object
+   * @returns {Object} Updated profile data with HATEOAS links
+   */
   async updateProfile(req: Request, res: Response) {
     try {
       const { userId, name, email, bio, phone } = req.body;
-
       if (!userId || !name || !email) {
         return res.status(400).json({
           success: false,
@@ -15,7 +26,7 @@ export class ProfileController {
       }
 
       const currentUser = (req as any).user;
-if (currentUser.id?.toString() !== userId.toString()) {
+      if (currentUser.id?.toString() !== userId.toString()) {
         return res.status(403).json({
           success: false,
           message: "You can only update your own profile",
@@ -81,11 +92,19 @@ if (currentUser.id?.toString() !== userId.toString()) {
     }
   }
 
+  /**
+   * @desc    Get a user's public profile by user ID
+   * @route   GET /api/profile/:userId
+   * @access  Public
+   * @param   {Request} req - Express request object containing userId in params
+   * @param   {Response} res - Express response object
+   * @returns {Object} User profile data (excludes password) with HATEOAS links
+   */
   async getProfile(req: Request, res: Response) {
     try {
       const { userId } = req.params;
-
       const user = await UserModel.findById(userId);
+
       if (!user) {
         return res.status(404).json({
           success: false,

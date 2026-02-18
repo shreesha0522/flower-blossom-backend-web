@@ -11,6 +11,9 @@ import nodemailer from "nodemailer";
 
 const userService = new UserService();
 
+/**
+ * @desc    Nodemailer transporter configured with Gmail SMTP
+ */
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -19,7 +22,20 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/**
+ * @class AuthController
+ * @desc Handles all authentication related operations including registration, login, and password reset
+ */
 export class AuthController {
+
+  /**
+   * @desc    Register a new user
+   * @route   POST /api/auth/register
+   * @access  Public
+   * @param   {Request} req - Express request object containing username, email, password, firstName, lastName
+   * @param   {Response} res - Express response object
+   * @returns {Object} Newly created user data with HATEOAS links
+   */
   register = async (req: Request, res: Response) => {
     try {
       const parsedData = CreateUserDTO.safeParse(req.body);
@@ -33,7 +49,6 @@ export class AuthController {
       const userData: CreateUserDTO = parsedData.data;
       const newUser = await userService.createUser(userData);
 
-      // ✅ Fixed: cast to any to safely access _id
       const userId = (newUser as any)._id?.toString();
 
       return res.status(201).json({
@@ -55,6 +70,14 @@ export class AuthController {
     }
   };
 
+  /**
+   * @desc    Login user and return JWT token
+   * @route   POST /api/auth/login
+   * @access  Public
+   * @param   {Request} req - Express request object containing email and password
+   * @param   {Response} res - Express response object
+   * @returns {Object} User data and JWT token with HATEOAS links
+   */
   login = async (req: Request, res: Response) => {
     try {
       const parsedData = LoginUserDTO.safeParse(req.body);
@@ -68,7 +91,6 @@ export class AuthController {
       const userData: LoginUserDTO = parsedData.data;
       const { token, user } = await userService.loginUser(userData);
 
-      // ✅ Fixed: cast to any to safely access _id
       const userId = (user as any)._id?.toString();
 
       return res.status(200).json({
@@ -91,12 +113,19 @@ export class AuthController {
     }
   };
 
+  /**
+   * @desc    Update authenticated user's own profile
+   * @route   PUT /api/auth/:id
+   * @access  Private (Authenticated user - own profile only)
+   * @param   {Request} req - Express request object containing user ID in params and update fields in body
+   * @param   {Response} res - Express response object
+   * @returns {Object} Updated user data with HATEOAS links
+   */
   updateUser = async (req: Request, res: Response) => {
     try {
       const id = req.params.id as string;
       const currentUser = (req as any).user;
 
-      // ✅ Fixed: use _id instead of id
       if (currentUser._id?.toString() !== id) {
         return res.status(403).json({
           success: false,
@@ -172,6 +201,14 @@ export class AuthController {
     }
   };
 
+  /**
+   * @desc    Send password reset email to user
+   * @route   POST /api/auth/forgot-password
+   * @access  Public
+   * @param   {Request} req - Express request object containing email in body
+   * @param   {Response} res - Express response object
+   * @returns {Object} Success message confirming reset email was sent
+   */
   forgotPassword = async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
@@ -224,6 +261,14 @@ export class AuthController {
     }
   };
 
+  /**
+   * @desc    Reset user password using token received via email
+   * @route   POST /api/auth/reset-password/:token
+   * @access  Public
+   * @param   {Request} req - Express request object containing reset token in params and newPassword in body
+   * @param   {Response} res - Express response object
+   * @returns {Object} Success message confirming password was reset
+   */
   resetPassword = async (req: Request, res: Response) => {
     try {
       const token = req.params.token as string;
