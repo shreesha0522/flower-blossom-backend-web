@@ -83,7 +83,8 @@ beforeAll(async () => {
     lastName: "Test",
     role: "user",
   });
-  profileUserId = profileUser._id.toString(); // FIXED: proper indentation
+  profileUserId = profileUser._id.toString();
+
   const profileLogin = await request(app).post("/api/auth/login").send({
     email: "profiletest@example.com",
     password: testUser.password,
@@ -281,7 +282,7 @@ describe("POST /api/auth/forgot-password", () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.message.toLowerCase()).toContain("reset");
-  }, 15000); // extra timeout for email sending
+  }, 15000);
 
   test("should fail for non-existent email", async () => {
     const res = await request(app).post("/api/auth/forgot-password").send({ email: "nobody@example.com" });
@@ -525,6 +526,8 @@ describe("DELETE /api/admin/users/:id", () => {
       username: "todelete_jest",
       email: "todelete@example.com",
       password: hashed,
+      firstName: "To",
+      lastName: "Delete",
       role: "user",
     });
     const res = await request(app).delete("/api/admin/users/" + userToDelete._id.toString())
@@ -597,7 +600,7 @@ describe("GET /api/profile/:userId", () => {
   });
 
   test("should return correct name format as string", async () => {
-    const res = await request(app).get(`/api/profile/${profileUserId}`); // FIXED: was backtick syntax error
+    const res = await request(app).get(`/api/profile/${profileUserId}`);
     expect(res.status).toBe(200);
     expect(typeof res.body.data.name).toBe("string");
     expect(res.body.data.name.length).toBeGreaterThan(0);
@@ -675,7 +678,6 @@ describe("POST /api/profile/update", () => {
       .field("userId", "000000000000000000000000")
       .field("name", "Ghost User")
       .field("email", "ghost@example.com");
-    // Will return 403 because ownership check fails before DB lookup — this is correct REST behavior
     expect([403, 404]).toContain(res.status);
     expect(res.body.success).toBe(false);
   });
@@ -688,7 +690,7 @@ describe("POST /api/profile/update", () => {
       .field("email", "profiletest@example.com");
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    const getRes = await request(app).get(`/api/profile/${profileUserId}`); // FIXED: was backtick syntax error
+    const getRes = await request(app).get(`/api/profile/${profileUserId}`);
     expect(getRes.body.data.name).toContain("John");
   });
 });
@@ -697,14 +699,14 @@ describe("POST /api/profile/update", () => {
 
 describe("GET /api/upload/profile-image/:userId", () => {
   test("should return profile image data for valid user", async () => {
-    const res = await request(app).get(`/api/upload/profile-image/${uploadUserId}`); // FIXED: was backtick syntax error
+    const res = await request(app).get(`/api/upload/profile-image/${uploadUserId}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty("imageUrl");
   });
 
   test("should return null imageUrl when user has no profile image", async () => {
-    const res = await request(app).get(`/api/upload/profile-image/${uploadUserId}`); // FIXED: was backtick syntax error
+    const res = await request(app).get(`/api/upload/profile-image/${uploadUserId}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
