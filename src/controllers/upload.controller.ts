@@ -1,13 +1,24 @@
 import { Request, Response } from "express";
-
 import { UserService } from "../service/user.service";
 import fs from "fs";
 import path from "path";
 
 let userService = new UserService();
 
+/**
+ * @class UploadController
+ * @desc Handles profile image upload, retrieval and deletion operations
+ */
 export class UploadController {
 
+  /**
+   * @desc    Upload a profile image for a user
+   * @route   POST /api/upload/profile-image
+   * @access  Public
+   * @param   {Request} req - Express request object containing userId in body and image file as multipart/form-data
+   * @param   {Response} res - Express response object
+   * @returns {Object} Updated user data and image URL with HATEOAS links
+   */
   async uploadProfileImage(req: Request, res: Response) {
     try {
       if (!req.file) {
@@ -51,6 +62,14 @@ export class UploadController {
     }
   }
 
+  /**
+   * @desc    Get the profile image URL for a user
+   * @route   GET /api/upload/profile-image/:userId
+   * @access  Public
+   * @param   {Request} req - Express request object containing userId in params
+   * @param   {Response} res - Express response object
+   * @returns {Object} Image URL data with HATEOAS links, imageUrl is null if no image set
+   */
   async getProfileImage(req: Request, res: Response) {
     try {
       const userId = req.params.userId as string;
@@ -82,6 +101,14 @@ export class UploadController {
     }
   }
 
+  /**
+   * @desc    Delete the profile image for a user
+   * @route   DELETE /api/upload/profile-image/:userId
+   * @access  Public
+   * @param   {Request} req - Express request object containing userId in params
+   * @param   {Response} res - Express response object
+   * @returns {Object} Success message with HATEOAS links
+   */
   async deleteProfileImage(req: Request, res: Response) {
     try {
       const userId = req.params.userId as string;

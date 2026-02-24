@@ -3,11 +3,22 @@ import { AdminService } from "../service/admin.service";
 
 const adminService = new AdminService();
 
+/**
+ * @class AdminController
+ * @desc Handles all admin-related operations including user management
+ */
 export class AdminController {
 
+  /**
+   * @desc    Create a new user as admin
+   * @route   POST /api/admin/users
+   * @access  Private (Admin only)
+   * @param   {Request} req - Express request object containing user data in body and optional image file
+   * @param   {Response} res - Express response object
+   * @returns {Object} Created user data with HATEOAS links
+   */
   createUser = async (req: Request, res: Response) => {
     try {
-      
       const imagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
       const newUser = await adminService.createUser(req.body, imagePath);
 
@@ -38,6 +49,14 @@ export class AdminController {
     }
   };
 
+  /**
+   * @desc    Get all users with pagination, filtering and search
+   * @route   GET /api/admin/users
+   * @access  Private (Admin only)
+   * @param   {Request} req - Express request object with optional query params: page, limit, search, role
+   * @param   {Response} res - Express response object
+   * @returns {Object} Paginated list of users with pagination metadata and HATEOAS links
+   */
   getAllUsers = async (req: Request, res: Response) => {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -100,6 +119,14 @@ export class AdminController {
     }
   };
 
+  /**
+   * @desc    Get a single user by ID
+   * @route   GET /api/admin/users/:id
+   * @access  Private (Admin only)
+   * @param   {Request} req - Express request object containing user ID in params
+   * @param   {Response} res - Express response object
+   * @returns {Object} Single user data with HATEOAS links
+   */
   getUserById = async (req: Request, res: Response) => {
     try {
       const id = req.params.id as string;
@@ -135,6 +162,14 @@ export class AdminController {
     }
   };
 
+  /**
+   * @desc    Update a user by ID
+   * @route   PUT /api/admin/users/:id
+   * @access  Private (Admin only)
+   * @param   {Request} req - Express request object containing user ID in params and update data in body
+   * @param   {Response} res - Express response object
+   * @returns {Object} Updated user data with HATEOAS links
+   */
   updateUser = async (req: Request, res: Response) => {
     try {
       const id = req.params.id as string;
@@ -149,7 +184,6 @@ export class AdminController {
       if (bio !== undefined) updateData.bio = bio || null;
       if (phone !== undefined) updateData.phone = phone || null;
 
-      
       const newImagePath = req.file ? `/uploads/${req.file.filename}` : undefined;
       const shouldRemoveImage = removeImage === "true";
 
@@ -186,13 +220,20 @@ export class AdminController {
     }
   };
 
+  /**
+   * @desc    Delete a user by ID
+   * @route   DELETE /api/admin/users/:id
+   * @access  Private (Admin only)
+   * @param   {Request} req - Express request object containing user ID in params
+   * @param   {Response} res - Express response object
+   * @returns {Object} Success message with HATEOAS links
+   */
   deleteUser = async (req: Request, res: Response) => {
     try {
       const id = req.params.id as string;
       const currentUser = (req as any).user;
       const currentUserId = currentUser._id?.toString() || currentUser.id;
 
-      
       await adminService.deleteUser(id, currentUserId);
 
       return res.status(200).json({

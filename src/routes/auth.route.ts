@@ -10,6 +10,7 @@ router.post("/login", authController.login);
 router.post("/register", authController.register);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password/:token", authController.resetPassword);
+router.get("/me", isAuthenticated, authController.getMe);
 
 router.put("/:id", isAuthenticated, upload.single("image"), authController.updateUser);
 
